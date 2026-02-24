@@ -35,11 +35,12 @@ def _base_url():
 
 
 def _schema_header():
-    """eers_chatbot 스키마 접근 헤더 추가"""
+    """스키마 접근 헤더 (public이 아닐 때만 추가)"""
     h = _headers()
-    # PostgREST 는 Accept-Profile (GET) / Content-Profile (INSERT/UPDATE) 사용
-    h["Accept-Profile"] = supabase_config.schema
-    h["Content-Profile"] = supabase_config.schema
+    # public 스키마는 기본값이므로 헤더 생략 (404/406 오류 방지)
+    if supabase_config.schema and supabase_config.schema != "public":
+        h["Accept-Profile"] = supabase_config.schema
+        h["Content-Profile"] = supabase_config.schema
     return h
 
 

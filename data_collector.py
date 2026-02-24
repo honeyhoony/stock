@@ -5,6 +5,7 @@
 ║  (pykrx 미설치 환경 대응 — KRX REST 직접 호출)             ║
 ╚══════════════════════════════════════════════════════════╝
 """
+import os
 import time
 import json
 import logging

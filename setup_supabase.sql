@@ -1,13 +1,10 @@
 -- ═══════════════════════════════════════════════════
--- Supabase 테이블 생성 SQL
--- eers_chatbot 스키마에 my_holdings 테이블 생성
+-- Supabase 테이블 생성 SQL (v2.1 - Public Schema 전용)
+-- Supabase SQL Editor에 복사하여 실행하세요.
 -- ═══════════════════════════════════════════════════
 
--- 1. 스키마가 없으면 생성
-CREATE SCHEMA IF NOT EXISTS eers_chatbot;
-
--- 2. my_holdings 테이블
-CREATE TABLE IF NOT EXISTS eers_chatbot.my_holdings (
+-- 1. my_holdings 테이블 (public 스키마 사용으로 404 오류 방지)
+CREATE TABLE IF NOT EXISTS public.my_holdings (
     id BIGSERIAL PRIMARY KEY,
     ticker VARCHAR(10) NOT NULL UNIQUE,      -- 종목코드
     name VARCHAR(100) NOT NULL,               -- 종목명
@@ -21,35 +18,31 @@ CREATE TABLE IF NOT EXISTS eers_chatbot.my_holdings (
     pnl_amount NUMERIC(14, 2) DEFAULT 0,      -- 손익 금액
     
     -- 리스크 관리 & 모니터링 모드 (v2 추가)
-    monitoring_mode VARCHAR(30) DEFAULT '손절 중심', -- 손절 중심 / 익절 중심 / 추세 추종
-    highest_price NUMERIC(12, 2) DEFAULT 0,          -- 상장 이후(또는 매수 이후) 최고가 (추적 손절용)
-    trailing_stop_pct NUMERIC(5, 2) DEFAULT 5.0,     -- 고점 대비 하락 허용치 (%)
+    monitoring_mode VARCHAR(30) DEFAULT '손절 중심', 
+    highest_price NUMERIC(12, 2) DEFAULT 0,          
+    trailing_stop_pct NUMERIC(5, 2) DEFAULT 5.0,     
     
-    stop_loss_price NUMERIC(12, 2) DEFAULT 0, -- 고정 손절가
-    ma20_price NUMERIC(12, 2) DEFAULT 0,      -- 20일 이동평균
-    status VARCHAR(20) DEFAULT '정상',         -- 정상/경고/손절임박/손절도달
-    last_reason TEXT DEFAULT '',               -- 마지막 상태 사유
+    stop_loss_price NUMERIC(12, 2) DEFAULT 0, 
+    ma20_price NUMERIC(12, 2) DEFAULT 0,      
+    status VARCHAR(20) DEFAULT '정상',         
+    last_reason TEXT DEFAULT '',               
     
     -- 타임스탬프
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. 인덱스
-CREATE INDEX IF NOT EXISTS idx_holdings_ticker 
-    ON eers_chatbot.my_holdings(ticker);
+-- 2. 인덱스 생성
+CREATE INDEX IF NOT EXISTS idx_holdings_ticker_pub ON public.my_holdings(ticker);
+CREATE INDEX IF NOT EXISTS idx_holdings_status_pub ON public.my_holdings(status);
 
-CREATE INDEX IF NOT EXISTS idx_holdings_status 
-    ON eers_chatbot.my_holdings(status);
+-- 3. RLS (Row Level Security) 설정
+-- 테스트 편의를 위해 모든 접근 허용 (보안 필요 시 Policy 조정 필요)
+ALTER TABLE public.my_holdings ENABLE ROW LEVEL SECURITY;
 
--- 4. RLS (Row Level Security) 정책 — 선택사항
-ALTER TABLE eers_chatbot.my_holdings ENABLE ROW LEVEL SECURITY;
-
--- 서비스 키 사용 시 모든 접근 허용
-CREATE POLICY "Allow all for service role" ON eers_chatbot.my_holdings
+CREATE POLICY "Allow all" ON public.my_holdings
     FOR ALL USING (true) WITH CHECK (true);
 
--- 5. 스키마를 API에 노출 (Supabase 대시보드 → Settings → API → Exposed schemas에도 추가 필요)
-GRANT USAGE ON SCHEMA eers_chatbot TO anon, authenticated, service_role;
-GRANT ALL ON ALL TABLES IN SCHEMA eers_chatbot TO anon, authenticated, service_role;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA eers_chatbot TO anon, authenticated, service_role;
+-- 4. 권한 부여
+GRANT ALL ON TABLE public.my_holdings TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
