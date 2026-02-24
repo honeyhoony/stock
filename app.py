@@ -240,6 +240,18 @@ with st.sidebar:
     with st.expander("💼 종목군 필터 설정", expanded=True):
         f_mcap = st.number_input("최소 시가총액 (억)", 0, 50000, mcap_p, step=100)
         f_rank = st.number_input("거래대금 상위 순위", 0, 3000, rank_p, step=50)
+        
+        # 5대 전략 개별 선택
+        strategy_options = {
+            "pullback": "눌림목",
+            "bottom_escape": "바닥탈출",
+            "golden_cross": "골든크로스",
+            "breakout": "박스권돌파",
+            "convergence": "정배열초입"
+        }
+        f_strats = st.multiselect("분석 전략 선택", options=list(strategy_options.keys()), 
+                                 default=strats_p, 
+                                 format_func=lambda x: strategy_options[x])
 
     st.divider()
     
@@ -249,7 +261,7 @@ with st.sidebar:
             try: requests.get(f"{BACKEND_URL}/api/scan", params=p, timeout=200)
             except: pass
 
-        scan_params = {"min_market_cap": f_mcap * 100000000, "top_rank": f_rank, "strats": ",".join(strats_p)}
+        scan_params = {"min_market_cap": f_mcap * 100000000, "top_rank": f_rank, "strats": ",".join(f_strats)}
         
         # 스레드 시작
         scan_thread = threading.Thread(target=run_scan_request, args=(scan_params,))
@@ -303,7 +315,7 @@ if m_data:
     h1, h2, h3, h4 = st.columns(4)
     with h1: st.markdown(f'<div class="p-card"><div class="metric-title">KOSPI 지수</div><div class="metric-value">{m_data.kospi_value:,.1f}</div></div>', unsafe_allow_html=True)
     with h2: st.markdown(f'<div class="p-card"><div class="metric-title">KOSDAQ 지수</div><div class="metric-value">{m_data.kosdaq_value:,.1f}</div></div>', unsafe_allow_html=True)
-    with h3: st.markdown(f'<div class="p-card"><div class="metric-title">시장 심리/국면</div><div class="metric-value" style="font-size:1.25rem !important">{korean_phase}</div></div>', unsafe_allow_html=True)
+    with h3: st.markdown(f'<div class="p-card"><div class="metric-title">시장 심리/국면</div><div class="metric-value" style="font-size:1.05rem !important">{korean_phase}</div></div>', unsafe_allow_html=True)
     with h4: st.markdown(f'<div class="p-card"><div class="metric-title">탐지된 신호</div><div class="metric-value">{len(raw_sigs)}건</div></div>', unsafe_allow_html=True)
 
 # ══════════════════════════════════════

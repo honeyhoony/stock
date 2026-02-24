@@ -11,6 +11,7 @@ import sys
 from datetime import datetime
 from typing import List
 import threading
+from concurrent.futures import ThreadPoolExecutor
 
 from config import (
     filter_config, telegram_config, system_config,
@@ -111,26 +112,31 @@ class QuantScanner:
 
             all_signals: List[StrategySignal] = []
             total = len(ticker_list)
-
-            for idx, ticker in enumerate(ticker_list, 1):
-                pct = 20 + int((idx / max(total, 1)) * 75)
-                self.progress = {"percent": pct, "message": f"🔍 {ticker} 분석 중 ({idx}/{total})"}
-                
-                if idx % 10 == 0 or idx == 1:
-                    logger.info(f"  스캔 진행: {idx}/{total} ({idx/max(total, 1)*100:.0f}%)")
-
+            processed_count = 0
+            
+            # 병렬 분석 함수
+            def analyze_ticker(ticker_info):
+                nonlocal processed_count
+                tic = ticker_info
+                sigs = []
                 for strategy_key, check_fn in strategy_map.items():
-                    if strategy_key not in allowed:
-                        continue
+                    if strategy_key not in allowed: continue
                     try:
-                        signal = check_fn(ticker)
-                        if signal.triggered:
-                            all_signals.append(signal)
-                            logger.info(f"  ✅ {signal.name}({ticker}) — {signal.strategy.value}")
-                    except Exception as e:
-                        logger.debug(f"  {ticker} {strategy_key} 오류: {e}")
+                        signal = check_fn(tic)
+                        if signal.triggered: sigs.append(signal)
+                    except: pass
+                
+                processed_count += 1
+                curr_pct = 20 + int((processed_count / max(total, 1)) * 75)
+                self.progress = {"percent": curr_pct, "message": f"🔍 {tic} 분석 중 ({processed_count}/{total})"}
+                return sigs
 
-                time.sleep(0.3)
+            # ThreadPool 활용하여 병렬 처리 (속도 향상)
+            max_workers = 5 # API 제한 고려
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_results = list(executor.map(analyze_ticker, ticker_list))
+                for sig_list in future_results:
+                    all_signals.extend(sig_list)
 
             # ─────────────────────────────────
             # Step 4: 결과 정렬 및 보고
