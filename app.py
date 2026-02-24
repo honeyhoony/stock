@@ -104,6 +104,12 @@ def inject_premium_css_v4():
         shadow = "rgba(0, 0, 0, 0.05)"
         header_text = "#0f172a"
 
+    # 전역 사용을 위해 session_state에 저장
+    st.session_state.theme_colors = {
+        "bg": bg, "card_bg": card_bg, "text": text, "text_dim": text_dim,
+        "border": border, "accent": accent, "sub_card": sub_card, "header_text": header_text
+    }
+
     st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;800&family=Outfit:wght@400;600;800&display=swap');
@@ -358,6 +364,11 @@ else:
         
         with g_cols[idx % 2]:
             tags = " ".join([f'<span class="p-pill">{name}</span>' for name in st_names])
+            
+            # 분석 근거 (Reasons) 추출
+            reason_list = main.get('reasons', [])
+            reason_html = "".join([f'<div style="font-size:0.8rem; color:#94a3b8; margin-bottom:4px">◦ {r}</div>' for r in reason_list])
+            
             card_html = f"""<div class="p-card">
 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:15px">
 <div>
@@ -366,10 +377,16 @@ else:
 </div>
 <div style="font-size:1.8rem; font-weight:800; color:#6366f1; font-family: Outfit;">{format_price(main.get('current_price'))}원</div>
 </div>
-<div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap">{tags}</div>
+<div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap">{tags}</div>
+
+<div style="background:rgba(99, 102, 241, 0.05); border-radius:12px; padding:12px; margin-bottom:15px; border:1px dashed rgba(99, 102, 241, 0.2)">
+    <div style="font-size:0.75rem; font-weight:800; color:#6366f1; margin-bottom:6px">📊 AI 분석 근거 (기술적 지표)</div>
+    {reason_html if reason_html else '<div style="font-size:0.8rem; color:#94a3b8">주요 기술적 지표 밀집 구간 통과 중</div>'}
+</div>
+
 <div class="status-bar">
 <svg style="width:20px;height:20px" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1a1 1 0 112 0v1a1 1 0 11-2 0zM13.536 15.657a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM16.464 13.536a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707z"></path></svg>
-수급 분석 결과: {main.get('supply_acceleration', '정상 수급 유입 중')}
+수급: {main.get('supply_acceleration', '정상 유입 중')}
 </div>
 <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:15px; margin-top:10px">
 <div style="text-align:center; padding:12px; background:rgba(239, 68, 68, 0.05); border-radius:16px; border:1px solid rgba(239, 68, 68, 0.1)">
@@ -395,12 +412,14 @@ st.divider()
 st.markdown("### 🔝 데이터 신뢰도 순위 (TOP 200)")
 if raw_sigs:
     tops = sorted(raw_sigs, key=lambda x: x.get('confidence', 0), reverse=True)[:200]
+    # 테마 변수 재로드 (for NameError 방지)
+    t_colors = st.session_state.theme_colors
     l_cols = st.columns(4)
     for i, s in enumerate(tops):
         with l_cols[i % 4]:
             st.markdown(f"""
-            <div style="padding:15px; border-bottom:1px solid {border}; display:flex; justify-content:space-between; font-size:0.9rem">
-                <span><b>{i+1}. {s.get('name')}</b> <small style="color:{text_dim}"> {s.get('ticker')}</small></span>
+            <div style="padding:15px; border-bottom:1px solid {t_colors['border']}; display:flex; justify-content:space-between; font-size:0.9rem">
+                <span><b>{i+1}. {s.get('name')}</b> <small style="color:{t_colors['text_dim']}"> {s.get('ticker')}</small></span>
                 <span style="color:#6366f1; font-weight:800">{s.get('confidence', 0):.0f}%</span>
             </div>
             """, unsafe_allow_html=True)
