@@ -178,27 +178,38 @@ class DataCollector:
                     result[col].astype(str).str.replace(",", ""), errors="coerce"
                 )
 
-        # 종목 정보 캐시 (인덱스 또는 컬럼 대응)
-        temp_res = result.reset_index() if result.index.name == "종목코드" else result
-        if "종목코드" in temp_res.columns and "종목명" in temp_res.columns:
-            for _, row in temp_res.iterrows():
-                self._ticker_name_cache[str(row["종목코드"])] = str(row["종목명"])
+        # 종목코드 정제 및 인덱스 설정
+        if "종목코드" in result.columns:
+            result["종목코드"] = result["종목코드"].astype(str).str.strip()
+            result.set_index("종목코드", inplace=True)
+
+        # 종목 정보 캐시 갱신
+        for ticker, name in zip(result.index, result["종목명"]):
+            self._ticker_name_cache[str(ticker)] = str(name)
 
         self._cache[cache_key] = (datetime.now(), result)
         return result
 
     def get_ticker_details(self, ticker: str) -> Dict:
         """종목의 최근 시총, 종가 등 요약 정보 반환"""
+        ticker_str = str(ticker).strip()
         df = self.get_market_cap_data()
-        if ticker in df.index:
-            row = df.loc[ticker]
+        
+        # 1순위: 인덱스 조회
+        if ticker_str in df.index:
+            row = df.loc[ticker_str]
             return {
-                "name": row.get("종목명", ticker),
+                "name": row.get("종목명", self._ticker_name_cache.get(ticker_str, ticker_str)),
                 "market_cap": int(row.get("시가총액", 0)),
                 "price": int(row.get("종가", 0)),
                 "value": int(row.get("거래대금", 0)),
             }
-        return {"name": ticker, "market_cap": 0, "price": 0, "value": 0}
+        
+        # 2순위: 캐시만 조회 (데이터프레임에 없는 경우 대비)
+        return {
+            "name": self._ticker_name_cache.get(ticker_str, ticker_str),
+            "market_cap": 0, "price": 0, "value": 0
+        }
 
     def filter_stocks(self, min_market_cap: int = None, top_rank: int = None) -> pd.DataFrame:
         """시가총액 및 거래대금 순합 기반 필터링 (동적 인자 지원)"""
