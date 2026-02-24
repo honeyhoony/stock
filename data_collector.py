@@ -105,6 +105,11 @@ class DataCollector:
         self._cache: Dict[str, Tuple[datetime, object]] = {}
         self._ticker_name_cache: Dict[str, str] = {}
 
+    def clear_cache(self):
+        """저장된 모든 캐시 삭제 (강제 재수집용)"""
+        self._cache.clear()
+        logger.info("🧹 데이터 수집기 캐시가 초기화되었습니다.")
+
     def get_stock_name(self, ticker: str) -> str:
         """종목코드로 종목명 반환"""
         if ticker in self._ticker_name_cache:
@@ -117,10 +122,10 @@ class DataCollector:
     # ══════════════════════════════════════
     # 1. 종목 리스트 & 필터링
     # ══════════════════════════════════════
-    def get_market_cap_data(self) -> pd.DataFrame:
+    def get_market_cap_data(self, force: bool = False) -> pd.DataFrame:
         """시가총액 + 거래대금 데이터 조회 (KRX) - 최근 영업일 찾기 로직 포함"""
         cache_key = "market_cap"
-        if cache_key in self._cache:
+        if not force and cache_key in self._cache:
             ts, df = self._cache[cache_key]
             if (datetime.now() - ts).seconds < 600:
                 return df
