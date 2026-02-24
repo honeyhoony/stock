@@ -157,13 +157,13 @@ def inject_premium_css_v4():
         display: flex;
         align-items: center;
         gap: 12px;
-        font-size: 0.95rem;
+        font-size: 0.85rem;
         box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
     }}
 
     /* 지표 강조 */
     .metric-title {{ font-size: 0.85rem; color: {text_dim} !important; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }}
-    .metric-value {{ font-size: 1.8rem; font-weight: 800; color: {accent} !important; font-family: 'Outfit'; }}
+    .metric-value {{ font-size: 1.6rem; font-weight: 800; color: {accent} !important; font-family: 'Outfit'; }}
 
     /* 필 태그 (Pills) */
     .p-pill {{
@@ -360,16 +360,16 @@ if m_data:
     
     # 🔍 시장 국면 한글화 (BULL/BEAR/NEUTRAL -> 한글)
     phase_map = {
-        "BULL": "🚀 강력 상승장 (매수 전략 유리)",
-        "BEAR": "📉 하락/위축장 (리스크 관리 필수)",
-        "NEUTRAL": "☁️ 횡보/혼조세 (종목별 차별화)"
+        "BULL": "🚀 강력 상승 (매수 유리)",
+        "BEAR": "📉 하락 위축 (리스크 관리)",
+        "NEUTRAL": "☁️ 횡보 혼조 (종목 차별화)"
     }
     korean_phase = phase_map.get(m_data.market_phase, f"상태 확인 중 ({m_data.market_phase})")
     
     h1, h2, h3, h4 = st.columns(4)
     with h1: st.markdown(f'<div class="p-card"><div class="metric-title">KOSPI 지수</div><div class="metric-value">{m_data.kospi_value:,.1f}</div></div>', unsafe_allow_html=True)
     with h2: st.markdown(f'<div class="p-card"><div class="metric-title">KOSDAQ 지수</div><div class="metric-value">{m_data.kosdaq_value:,.1f}</div></div>', unsafe_allow_html=True)
-    with h3: st.markdown(f'<div class="p-card"><div class="metric-title">시장 심리/국면</div><div class="metric-value" style="font-size:0.95rem !important">{korean_phase}</div></div>', unsafe_allow_html=True)
+    with h3: st.markdown(f'<div class="p-card"><div class="metric-title">시장 심리/국면</div><div class="metric-value" style="font-size:0.85rem !important">{korean_phase}</div></div>', unsafe_allow_html=True)
     with h4: st.markdown(f'<div class="p-card"><div class="metric-title">탐지된 신호</div><div class="metric-value">{len(raw_sigs)}건</div></div>', unsafe_allow_html=True)
 
 # ══════════════════════════════════════
@@ -432,7 +432,7 @@ else:
 
             # 분석 근거 (Reasons) 추출
             reason_list = main.get('reasons', [])
-            reason_html = "".join([f'<div style="font-size:0.8rem; color:#94a3b8; margin-bottom:4px">◦ {r}</div>' for r in reason_list])
+            reason_html = "".join([f'<div style="font-size:0.75rem; color:#94a3b8; margin-bottom:4px">◦ {r}</div>' for r in reason_list])
             
             card_html = f"""<div class="p-card" style="position:relative">
 <div class="confidence-badge">{main.get('confidence', 0):.0f}%</div>
@@ -447,10 +447,10 @@ else:
 
 <div style="background:rgba(99, 102, 241, 0.05); border-radius:12px; padding:12px; margin-bottom:15px; border:1px dashed rgba(99, 102, 241, 0.2)">
     <div style="font-size:0.75rem; font-weight:800; color:#6366f1; margin-bottom:6px">📊 AI 분석 근거 (기술적 지표)</div>
-    {reason_html if reason_html else '<div style="font-size:0.8rem; color:#94a3b8">주요 기술적 지표 밀집 구간 통과 중</div>'}
+    {reason_html if reason_html else '<div style="font-size:0.75rem; color:#94a3b8">주요 기술적 지표 밀집 구간 통과 중</div>'}
 </div>
 
-<div style="background:rgba(16, 185, 129, 0.05); padding:10px 14px; border-radius:12px; margin-bottom:15px; font-size:0.8rem; color:#10b981; border:1px solid rgba(16, 185, 129, 0.1)">
+<div style="background:rgba(16, 185, 129, 0.05); padding:10px 14px; border-radius:12px; margin-bottom:15px; font-size:0.75rem; color:#10b981; border:1px solid rgba(16, 185, 129, 0.1)">
     <span style="font-weight:800; margin-right:5px">📢 초보자 팁:</span> {current_tip}
 </div>
 
