@@ -176,6 +176,20 @@ def inject_premium_css_v4():
         border: 1px solid rgba(99, 102, 241, 0.2);
     }}
 
+    /* 신뢰도 배지 */
+    .confidence-badge {{
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: {accent};
+        color: white !important;
+        padding: 4px 12px;
+        border-radius: 8px;
+        font-weight: 800;
+        font-size: 0.85rem;
+        box-shadow: 0 4px 10px rgba(99, 102, 241, 0.4);
+    }}
+
     .logo-font {{ font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 2rem; color: {accent} !important; }}
     
     /* 도움말 테이블 */
@@ -300,14 +314,16 @@ with st.sidebar:
             try:
                 prog = requests.get(f"{BACKEND_URL}/api/progress", timeout=2).json()
                 pct = prog.get("percent", 0)
-                msg = prog.get("message", "분석 준비 중...")
+                active_logs = prog.get("active_logs", [])
                 
-                # 프로그레스 바 및 메시지 업데이트
+                # 프로그레스 바 및 멀티 로그 업데이트
                 p_bar.progress(pct / 100, text=f"분석 진행 중... {pct}%")
+                
+                log_html = "".join([f'<div style="font-size:0.85rem; margin-bottom:4px; color:#6366f1">{log}</div>' for log in active_logs])
                 p_msg.markdown(f"""
-                <div style="background:rgba(99, 102, 241, 0.1); padding:15px; border-radius:12px; border-left:4px solid #6366f1; margin:10px 0">
-                    <div style="font-size:0.85rem; color:#94a3b8; margin-bottom:5px">실시간 분석 로그</div>
-                    <div style="font-weight:700; color:#6366f1">{msg}</div>
+                <div style="background:rgba(99, 102, 241, 0.05); padding:18px; border-radius:16px; border:1px solid rgba(99, 102, 241, 0.2); margin:10px 0">
+                    <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:8px; font-weight:800; text-transform:uppercase; letter-spacing:1px">실시간 병렬 분석 로그</div>
+                    {log_html if log_html else '<div style="color:#94a3b8">엔진 가동 준비 중...</div>'}
                 </div>
                 """, unsafe_allow_html=True)
             except:
@@ -394,13 +410,14 @@ else:
             reason_list = main.get('reasons', [])
             reason_html = "".join([f'<div style="font-size:0.8rem; color:#94a3b8; margin-bottom:4px">◦ {r}</div>' for r in reason_list])
             
-            card_html = f"""<div class="p-card">
+            card_html = f"""<div class="p-card" style="position:relative">
+<div class="confidence-badge">{main.get('confidence', 0):.0f}%</div>
 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:15px">
 <div>
 <span style="font-size:1.5rem; font-weight:800">{main.get('name')}</span>
 <span style="color:#94a3b8; font-size:1rem; margin-top:4px; display:block">{ticker}</span>
 </div>
-<div style="font-size:1.8rem; font-weight:800; color:#6366f1; font-family: Outfit;">{format_price(main.get('current_price'))}원</div>
+<div style="font-size:1.8rem; font-weight:800; color:#6366f1; font-family: Outfit; margin-right:60px">{format_price(main.get('current_price'))}원</div>
 </div>
 <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap">{tags}</div>
 

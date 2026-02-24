@@ -48,8 +48,9 @@ class QuantScanner:
             )
         self.scan_results: List[dict] = []
         self.market_condition = None
-        self.progress = {"percent": 0, "message": "대기 중..."}
+        self.progress = {"percent": 0, "message": "대기 중...", "active_logs": []}
         self._lock = threading.Lock()
+        self.active_logs = {} # 딕셔너리로 관리
 
     def run_scan(self, scan_params: dict = None) -> dict:
         """
@@ -97,9 +98,9 @@ class QuantScanner:
                 manual_tickers = ["005930", "000660", "373220", "207940", "005380"]
                 ticker_list = manual_tickers
             else:
-                ticker_list = filtered.index.tolist()
-
-            logger.info(f"  → 스캔 대상: {len(ticker_list)}개 종목")
+                ticker_list = filtered.index.tolist()[:100] # 최상위 100개만 엄선
+            
+            logger.info(f"  → 정예 스캔 대상: {len(ticker_list)}개 종목")
 
             # ─────────────────────────────────
             # Step 3: 전략 판별 (동적 파라미터 반영)
@@ -141,6 +142,12 @@ class QuantScanner:
             # 병렬 분석 함수
             def analyze_ticker(ticker_info):
                 nonlocal processed_count
+                stock_name = collector.get_stock_name(ticker_info)
+                
+                # 분석 시작 로그 업데이트
+                with self._lock:
+                    self.active_logs[ticker_info] = f"⏳ {stock_name} 분석 중..."
+                
                 sigs = []
                 # 분석 수행 (이 구간은 병렬로 진행)
                 for strategy_key, check_fn in strategy_map.items():
@@ -150,15 +157,18 @@ class QuantScanner:
                         if signal.triggered: sigs.append(signal)
                     except: pass
                 
-                # 진행률 업데이트 (이 구간은 락을 사용하여 순차 처리)
+                # 진행률 및 종료 로그 업데이트
                 with self._lock:
                     processed_count += 1
                     curr_pct = 20 + int((processed_count / max(total, 1)) * 75)
-                    stock_name = collector.get_stock_name(ticker_info)
-                    # 메시지와 퍼센트가 꼬이지 않도록 락 배분
+                    self.active_logs[ticker_info] = f"✅ {stock_name} 완료"
+                    
+                    # 진행률과 함께 현재 활성 로그 5개만 노출
+                    display_logs = list(self.active_logs.values())[-5:]
                     self.progress = {
                         "percent": curr_pct, 
-                        "message": f"🔍 {stock_name}({ticker_info}) 분석 완료 ({processed_count}/{total})"
+                        "message": f"📊 {stock_name} 분석 완료 ({processed_count}/{total})",
+                        "active_logs": display_logs
                     }
                 return sigs
 
