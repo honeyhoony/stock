@@ -369,7 +369,7 @@ if m_data:
     h1, h2, h3, h4 = st.columns(4)
     with h1: st.markdown(f'<div class="p-card"><div class="metric-title">KOSPI 지수</div><div class="metric-value">{m_data.kospi_value:,.1f}</div></div>', unsafe_allow_html=True)
     with h2: st.markdown(f'<div class="p-card"><div class="metric-title">KOSDAQ 지수</div><div class="metric-value">{m_data.kosdaq_value:,.1f}</div></div>', unsafe_allow_html=True)
-    with h3: st.markdown(f'<div class="p-card"><div class="metric-title">시장 심리/국면</div><div class="metric-value" style="font-size:1.05rem !important">{korean_phase}</div></div>', unsafe_allow_html=True)
+    with h3: st.markdown(f'<div class="p-card"><div class="metric-title">시장 심리/국면</div><div class="metric-value" style="font-size:0.95rem !important">{korean_phase}</div></div>', unsafe_allow_html=True)
     with h4: st.markdown(f'<div class="p-card"><div class="metric-title">탐지된 신호</div><div class="metric-value">{len(raw_sigs)}건</div></div>', unsafe_allow_html=True)
 
 # ══════════════════════════════════════
