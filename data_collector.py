@@ -104,6 +104,23 @@ class DataCollector:
     def __init__(self):
         self._cache: Dict[str, Tuple[datetime, object]] = {}
         self._ticker_name_cache: Dict[str, str] = {}
+        self.names_file = "ticker_names.json"
+        self._load_names()
+
+    def _load_names(self):
+        """파일에서 종목명 캐시 로드 (프로세스 간 공유용)"""
+        if os.path.exists(self.names_file):
+            try:
+                with open(self.names_file, "r", encoding="utf-8") as f:
+                    self._ticker_name_cache.update(json.load(f))
+            except: pass
+
+    def _save_names(self):
+        """종목명 캐시를 파일에 저장"""
+        try:
+            with open(self.names_file, "w", encoding="utf-8") as f:
+                json.dump(self._ticker_name_cache, f, ensure_ascii=False, indent=2)
+        except: pass
 
     def clear_cache(self):
         """저장된 모든 캐시 삭제 (강제 재수집용)"""
@@ -111,13 +128,19 @@ class DataCollector:
         logger.info("🧹 데이터 수집기 캐시가 초기화되었습니다.")
 
     def get_stock_name(self, ticker: str) -> str:
-        """종목코드로 종목명 반환"""
-        if ticker in self._ticker_name_cache:
-            return self._ticker_name_cache[ticker]
+        """종목코드로 종목명 반환 (강력한 이름 복구 로직)"""
+        ticker_str = str(ticker).strip()
+        if ticker_str in self._ticker_name_cache:
+            return self._ticker_name_cache[ticker_str]
         
-        # 캐시에 없으면 마켓 데이터 로드 시도
+        # 캐시에 없으면 파일에서 다시 로드 시도
+        self._load_names()
+        if ticker_str in self._ticker_name_cache:
+            return self._ticker_name_cache[ticker_str]
+        
+        # 그래도 없으면 마켓 데이터 로드 시도
         self.get_market_cap_data()
-        return self._ticker_name_cache.get(ticker, ticker) # 없으면 코드 그대로 반환
+        return self._ticker_name_cache.get(ticker_str, ticker_str)
 
     # ══════════════════════════════════════
     # 1. 종목 리스트 & 필터링
@@ -147,10 +170,10 @@ class DataCollector:
                     df["시장"] = mkt_name
                     temp_frames.append(df)
             
-            if len(temp_frames) >= 2: # 코스피, 코스닥 모두 성공 시
+            if temp_frames: # 하나만 성공해도 사용
                 frames = temp_frames
                 found_date = target_date
-                logger.info(f"KRX 데이터 로드 성공 (기준일: {found_date})")
+                logger.info(f"KRX 데이터 로드 성공 (기준일: {found_date}, 시장수: {len(frames)})")
                 break
         
         if not frames:
@@ -183,10 +206,11 @@ class DataCollector:
             result["종목코드"] = result["종목코드"].astype(str).str.strip()
             result.set_index("종목코드", inplace=True)
 
-        # 종목 정보 캐시 갱신
+        # 종목 정보 캐시 갱신 및 영구 저장
         for ticker, name in zip(result.index, result["종목명"]):
             self._ticker_name_cache[str(ticker)] = str(name)
-
+        
+        self._save_names() # 모든 프로세스가 공유할 수 있도록 파일로 덤프
         self._cache[cache_key] = (datetime.now(), result)
         return result
 
@@ -689,6 +713,7 @@ class DataCollector:
                 "시가총액": cap, "거래대금": trdval, "거래량": np.random.randint(10000, 1000000),
                 "시장": "KOSDAQ",
             })
+            self._ticker_name_cache[t] = name # 생성 즉시 캐시 삽입
             
         df = pd.DataFrame(data).set_index("종목코드")
         return df
