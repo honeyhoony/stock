@@ -10,6 +10,7 @@ import logging
 import sys
 from datetime import datetime
 from typing import List
+import threading
 
 from config import (
     filter_config, telegram_config, system_config,
@@ -47,170 +48,112 @@ class QuantScanner:
         self.scan_results: List[dict] = []
         self.market_condition = None
         self.progress = {"percent": 0, "message": "대기 중..."}
+        self._lock = threading.Lock()
 
     def run_scan(self, scan_params: dict = None) -> dict:
         """
-        전체 스캔 실행 (동적 파라미터 지원)
-        scan_params 예시: {
-            "min_market_cap": 100000000000,
-            "top_rank": 300,
-            "strategies": ["pullback", "golden_cross"],
-            "urgency_mode": "safe"
-        }
+        전체 스캔 실행 (동적 파라미터 지원 + 동시 실행 방지)
         """
-        params = scan_params or {}
-        start_time = time.time()
-        results = {
-            "scan_time": datetime.now().isoformat(),
-            "market_condition": {},
-            "signals": [],
-            "summary": {},
-        }
+        with self._lock:
+            params = scan_params or {}
+            start_time = time.time()
+            results = {
+                "scan_time": datetime.now().isoformat(),
+                "market_condition": {},
+                "signals": [],
+                "summary": {},
+            }
+            self.progress = {"percent": 0, "message": "⚙️ 분석 엔진 초기화 중..."}
 
-        # ─────────────────────────────────
-        # Step 1: 시장 상태 분석
-        # ─────────────────────────────────
-        logger.info("=" * 50)
-        logger.info("🔍 시장 상태 분석 중...")
-        self.market_condition = risk_manager.analyze_market_condition()
-        results["market_condition"] = ReportGenerator.market_condition_to_dict(
-            self.market_condition
-        )
-        print(ReportGenerator.format_market_condition_console(self.market_condition))
-
-        # ─────────────────────────────────
-        # Step 1: 시장 상태 분석
-        # ─────────────────────────────────
-        self.progress = {"percent": 5, "message": "📊 증시 상황 분석 중..."}
-        logger.info("=" * 50)
-        logger.info("🔍 시장 상태 분석 중...")
-        self.market_condition = risk_manager.analyze_market_condition()
-        results["market_condition"] = ReportGenerator.market_condition_to_dict(
-            self.market_condition
-        )
-        print(ReportGenerator.format_market_condition_console(self.market_condition))
-
-        # ─────────────────────────────────
-        # Step 2: 종목 필터링
-        # ─────────────────────────────────
-        self.progress = {"percent": 15, "message": "📋 우량 종목 필터링 중..."}
-        m_cap = params.get("min_market_cap")
-        t_rank = params.get("top_rank")
-        logger.info(f"📋 종목 필터링 중 (시총: {m_cap or '기본'}, 순위: {t_rank or '기본'})...")
-        filtered = collector.filter_stocks(min_market_cap=m_cap, top_rank=t_rank)
-
-        if filtered.empty:
-            logger.warning("⚠️ 필터링된 종목이 없습니다. 수동 종목으로 대체...")
-            manual_tickers = ["005930", "000660", "373220", "207940", "005380"]
-            ticker_list = manual_tickers
-        else:
-            ticker_list = filtered.index.tolist()
-
-        logger.info(f"  → 스캔 대상: {len(ticker_list)}개 종목")
-
-        # ─────────────────────────────────
-        # Step 3: 전략 판별
-        # ─────────────────────────────────
-        # UI에서 선택한 전략 혹은 시장 조건에 따른 허용 전략
-        selected_strats = params.get("strategies")
-        allowed = selected_strats if selected_strats is not None else self.market_condition.allowed_strategies
-        
-        strategy_map = {
-            "pullback": strategy_engine.check_pullback,
-            "bottom_escape": strategy_engine.check_bottom_escape,
-            "golden_cross": strategy_engine.check_golden_cross,
-            "breakout": strategy_engine.check_breakout,
-            "convergence": strategy_engine.check_convergence,
-        }
-
-        all_signals: List[StrategySignal] = []
-        total = len(ticker_list)
-
-        for idx, ticker in enumerate(ticker_list, 1):
-            pct = 20 + int((idx / total) * 75)  # 20% ~ 95% 구간
-            self.progress = {"percent": pct, "message": f"🔍 {ticker} 분석 중 ({idx}/{total})"}
-            
-            if idx % 10 == 0 or idx == 1:
-                logger.info(f"  스캔 진행: {idx}/{total} ({idx/total*100:.0f}%)")
-
-            for strategy_key, check_fn in strategy_map.items():
-                # 필터링된 허용 전략만 실행
-                if strategy_key not in allowed:
-                    continue
-
-                try:
-                    signal = check_fn(ticker)
-                    if signal.triggered:
-                        all_signals.append(signal)
-                        logger.info(
-                            f"  ✅ {signal.name}({ticker}) — {signal.strategy.value} "
-                            f"(신뢰도 {signal.confidence:.0f}%)"
-                        )
-                except Exception as e:
-                    logger.debug(f"  {ticker} {strategy_key} 오류: {e}")
-
-            # API Rate Limit 방지
-            time.sleep(0.3)
-
-        # ─────────────────────────────────
-        # Step 4: 결과 정렬 및 보고
-        # ─────────────────────────────────
-        # 신뢰도 내림차순 정렬
-        all_signals.sort(key=lambda s: s.confidence, reverse=True)
-
-        print("\n" + "=" * 60)
-        print(f"  🏆 스캔 결과: {len(all_signals)}개 전략 신호 감지")
-        print("=" * 60)
-
-        for signal in all_signals:
-            # 콘솔 출력
-            print(ReportGenerator.format_signal_console(signal))
-
-            # JSON 결과 추가
-            results["signals"].append(
-                ReportGenerator.signal_to_dict(signal)
+            # ─────────────────────────────────
+            # Step 1: 시장 상태 분석
+            # ─────────────────────────────────
+            self.progress = {"percent": 5, "message": "📊 증시 상황 분석 중..."}
+            logger.info("=" * 50)
+            logger.info("🔍 시장 상태 분석 중...")
+            self.market_condition = risk_manager.analyze_market_condition()
+            results["market_condition"] = ReportGenerator.market_condition_to_dict(
+                self.market_condition
             )
+            print(ReportGenerator.format_market_condition_console(self.market_condition))
 
-            # 텔레그램 전송
-            if self.telegram and signal.verdict == "매수 승인":
-                self.telegram.send_signal(signal)
+            # ─────────────────────────────────
+            # Step 2: 종목 필터링
+            # ─────────────────────────────────
+            self.progress = {"percent": 15, "message": "📋 우량 종목 필터링 중..."}
+            m_cap = params.get("min_market_cap")
+            t_rank = params.get("top_rank")
+            logger.info(f"📋 종목 필터링 중 (시총: {m_cap or '기본'}, 순위: {t_rank or '기본'})...")
+            filtered = collector.filter_stocks(min_market_cap=m_cap, top_rank=t_rank)
 
-        # ─────────────────────────────────
-        # Summary
-        # ─────────────────────────────────
-        elapsed = time.time() - start_time
-        approved = [s for s in all_signals if s.verdict == "매수 승인"]
-        watch = [s for s in all_signals if s.verdict == "관망"]
+            if filtered.empty:
+                logger.warning("⚠️ 필터링된 종목이 없습니다. 수동 종목으로 대체...")
+                manual_tickers = ["005930", "000660", "373220", "207940", "005380"]
+                ticker_list = manual_tickers
+            else:
+                ticker_list = filtered.index.tolist()
 
-        strategy_counts = {}
-        for s in all_signals:
-            key = s.strategy.value
-            strategy_counts[key] = strategy_counts.get(key, 0) + 1
+            logger.info(f"  → 스캔 대상: {len(ticker_list)}개 종목")
 
-        results["summary"] = {
-            "total_scanned": total,
-            "total_signals": len(all_signals),
-            "approved": len(approved),
-            "watch": len(watch),
-            "strategy_breakdown": strategy_counts,
-            "elapsed_seconds": round(elapsed, 1),
-            "market_phase": self.market_condition.market_phase,
-        }
+            # ─────────────────────────────────
+            # Step 3: 전략 판별
+            # ─────────────────────────────────
+            selected_strats = params.get("strategies")
+            allowed = selected_strats if selected_strats is not None else self.market_condition.allowed_strategies
+            
+            strategy_map = {
+                "pullback": strategy_engine.check_pullback,
+                "bottom_escape": strategy_engine.check_bottom_escape,
+                "golden_cross": strategy_engine.check_golden_cross,
+                "breakout": strategy_engine.check_breakout,
+                "convergence": strategy_engine.check_convergence,
+            }
 
-        print(f"\n{'─' * 50}")
-        print(f"  📊 요약: 스캔 {total}개 → 신호 {len(all_signals)}개")
-        print(f"    ✅ 매수 승인: {len(approved)}개")
-        print(f"    ⏸️  관망:     {len(watch)}개")
-        print(f"    ⏱️  소요시간:  {elapsed:.1f}초")
-        print(f"{'─' * 50}")
+            all_signals: List[StrategySignal] = []
+            total = len(ticker_list)
 
-        # 결과 저장
-        self.scan_results = results["signals"]
-        self._save_results(results)
-        
-        self.progress = {"percent": 100, "message": "✅ 분석 완료"}
+            for idx, ticker in enumerate(ticker_list, 1):
+                pct = 20 + int((idx / max(total, 1)) * 75)
+                self.progress = {"percent": pct, "message": f"🔍 {ticker} 분석 중 ({idx}/{total})"}
+                
+                if idx % 10 == 0 or idx == 1:
+                    logger.info(f"  스캔 진행: {idx}/{total} ({idx/max(total, 1)*100:.0f}%)")
 
-        return results
+                for strategy_key, check_fn in strategy_map.items():
+                    if strategy_key not in allowed:
+                        continue
+                    try:
+                        signal = check_fn(ticker)
+                        if signal.triggered:
+                            all_signals.append(signal)
+                            logger.info(f"  ✅ {signal.name}({ticker}) — {signal.strategy.value}")
+                    except Exception as e:
+                        logger.debug(f"  {ticker} {strategy_key} 오류: {e}")
+
+                time.sleep(0.3)
+
+            # ─────────────────────────────────
+            # Step 4: 결과 정렬 및 보고
+            # ─────────────────────────────────
+            all_signals.sort(key=lambda s: s.confidence, reverse=True)
+            for signal in all_signals:
+                results["signals"].append(ReportGenerator.signal_to_dict(signal))
+                if self.telegram and signal.verdict == "매수 승인":
+                    self.telegram.send_signal(signal)
+
+            # Summary
+            elapsed = time.time() - start_time
+            results["summary"] = {
+                "total_scanned": total,
+                "total_signals": len(all_signals),
+                "elapsed_seconds": round(elapsed, 1),
+                "market_phase": self.market_condition.market_phase,
+            }
+
+            self.scan_results = results["signals"]
+            self._save_results(results)
+            self.progress = {"percent": 100, "message": "✅ 분석 완료"}
+            return results
 
     def _save_results(self, results: dict):
         """스캔 결과를 JSON 파일로 저장"""
