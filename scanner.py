@@ -117,18 +117,24 @@ class QuantScanner:
             # 병렬 분석 함수
             def analyze_ticker(ticker_info):
                 nonlocal processed_count
-                tic = ticker_info
                 sigs = []
+                # 분석 수행 (이 구간은 병렬로 진행)
                 for strategy_key, check_fn in strategy_map.items():
                     if strategy_key not in allowed: continue
                     try:
-                        signal = check_fn(tic)
+                        signal = check_fn(ticker_info)
                         if signal.triggered: sigs.append(signal)
                     except: pass
                 
-                processed_count += 1
-                curr_pct = 20 + int((processed_count / max(total, 1)) * 75)
-                self.progress = {"percent": curr_pct, "message": f"🔍 {tic} 분석 중 ({processed_count}/{total})"}
+                # 진행률 업데이트 (이 구간은 락을 사용하여 순차 처리)
+                with self._lock:
+                    processed_count += 1
+                    curr_pct = 20 + int((processed_count / max(total, 1)) * 75)
+                    # 메시지와 퍼센트가 꼬이지 않도록 락 배분
+                    self.progress = {
+                        "percent": curr_pct, 
+                        "message": f"🔍 {ticker_info} 분석 완료 ({processed_count}/{total})"
+                    }
                 return sigs
 
             # ThreadPool 활용하여 병렬 처리 (속도 향상)
