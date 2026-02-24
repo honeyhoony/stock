@@ -406,6 +406,17 @@ else:
         with g_cols[idx % 2]:
             tags = " ".join([f'<span class="p-pill">{name}</span>' for name in st_names])
             
+            # 전략별 초보자 팁 매핑
+            tip_map = {
+                "눌림목": "💡 상승 중 일시적 조정 구간입니다. <b>저가 매수</b> 후 반등을 노리세요.",
+                "바닥탈출": "🌱 하락이 멈추고 반등이 시작되었습니다. <b>느긋하고 안정적인 투자</b>가 가능합니다.",
+                "골든크로스": "⚡ 추세가 상향으로 전환되었습니다. <b>거래량이 터질 때 매수</b>가 유리합니다.",
+                "박스권돌파": "🚀 저항 벽을 뚫었습니다. <b>빠른 속도로 수익</b>이 날 수 있는 구간입니다.",
+                "정배열초입": "🌊 대세 우동향 항해의 시작입니다. <b>길게 보유하여 수익을 극대화</b>하세요."
+            }
+            # 첫 번째 전략의 팁을 대표로 노출
+            current_tip = tip_map.get(st_names[0], "실시간 수급을 확인하며 분할 매수로 접근하세요.")
+
             # 분석 근거 (Reasons) 추출
             reason_list = main.get('reasons', [])
             reason_html = "".join([f'<div style="font-size:0.8rem; color:#94a3b8; margin-bottom:4px">◦ {r}</div>' for r in reason_list])
@@ -424,6 +435,10 @@ else:
 <div style="background:rgba(99, 102, 241, 0.05); border-radius:12px; padding:12px; margin-bottom:15px; border:1px dashed rgba(99, 102, 241, 0.2)">
     <div style="font-size:0.75rem; font-weight:800; color:#6366f1; margin-bottom:6px">📊 AI 분석 근거 (기술적 지표)</div>
     {reason_html if reason_html else '<div style="font-size:0.8rem; color:#94a3b8">주요 기술적 지표 밀집 구간 통과 중</div>'}
+</div>
+
+<div style="background:rgba(16, 185, 129, 0.05); padding:10px 14px; border-radius:12px; margin-bottom:15px; font-size:0.8rem; color:#10b981; border:1px solid rgba(16, 185, 129, 0.1)">
+    <span style="font-weight:800; margin-right:5px">📢 초보자 팁:</span> {current_tip}
 </div>
 
 <div class="status-bar">
