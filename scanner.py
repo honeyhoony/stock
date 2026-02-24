@@ -97,8 +97,27 @@ class QuantScanner:
             logger.info(f"  → 스캔 대상: {len(ticker_list)}개 종목")
 
             # ─────────────────────────────────
-            # Step 3: 전략 판별
+            # Step 3: 전략 판별 (동적 파라미터 반영)
             # ─────────────────────────────────
+            v = params.get("vars", {})
+            if v:
+                logger.info("🎯 사용자 정의 전략 파라미터 적용 중...")
+                # 눌림목
+                strategy_engine.params.pullback.reference_candle_lookback = v.get("p_lookback", 5)
+                strategy_engine.params.pullback.volume_cliff_threshold = v.get("p_vol", 0.3)
+                # 바닥탈출
+                strategy_engine.params.bottom_escape.ma_period = v.get("b_ma", 20)
+                strategy_engine.params.bottom_escape.accumulation_volume_ratio = v.get("b_vol_ratio", 2.0)
+                # 골든크로스
+                strategy_engine.params.golden_cross.short_ma = v.get("g_short", 5)
+                strategy_engine.params.golden_cross.long_ma = v.get("g_long", 20)
+                strategy_engine.params.golden_cross.rsi_threshold = v.get("g_rsi", 50)
+                # 박스권돌파
+                strategy_engine.params.breakout.box_lookback = v.get("br_lookback", 60)
+                strategy_engine.params.breakout.volume_surge_ratio = v.get("br_vol", 2.0)
+                # 정배열초입
+                strategy_engine.params.convergence.convergence_pct = v.get("c_pct", 0.03)
+
             selected_strats = params.get("strategies")
             allowed = selected_strats if selected_strats is not None else self.market_condition.allowed_strategies
             
@@ -130,10 +149,11 @@ class QuantScanner:
                 with self._lock:
                     processed_count += 1
                     curr_pct = 20 + int((processed_count / max(total, 1)) * 75)
+                    stock_name = collector.get_stock_name(ticker_info)
                     # 메시지와 퍼센트가 꼬이지 않도록 락 배분
                     self.progress = {
                         "percent": curr_pct, 
-                        "message": f"🔍 {ticker_info} 분석 완료 ({processed_count}/{total})"
+                        "message": f"🔍 {stock_name}({ticker_info}) 분석 완료 ({processed_count}/{total})"
                     }
                 return sigs
 

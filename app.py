@@ -240,18 +240,36 @@ with st.sidebar:
     with st.expander("💼 종목군 필터 설정", expanded=True):
         f_mcap = st.number_input("최소 시가총액 (억)", 0, 50000, mcap_p, step=100)
         f_rank = st.number_input("거래대금 상위 순위", 0, 3000, rank_p, step=50)
+
+    with st.expander("🎯 전략별 정밀 튜닝 (VPI)", expanded=False):
+        st.markdown("##### 1️⃣ 눌림목 (Pullback)")
+        p_lookback = st.slider("기준봉 탐색 (일)", 1, 20, 5)
+        p_vol = st.slider("거래량 절벽 (%)", 10, 100, 30) / 100
         
-        # 5대 전략 개별 선택
-        strategy_options = {
-            "pullback": "눌림목",
-            "bottom_escape": "바닥탈출",
-            "golden_cross": "골든크로스",
-            "breakout": "박스권돌파",
-            "convergence": "정배열초입"
-        }
-        f_strats = st.multiselect("분석 전략 선택", options=list(strategy_options.keys()), 
-                                 default=strats_p, 
-                                 format_func=lambda x: strategy_options[x])
+        st.markdown("##### 2️⃣ 바닥탈출 (Bottom)")
+        b_ma = st.selectbox("기준 이평선", [20, 60, 120], index=0)
+        b_vol_ratio = st.slider("매집봉 거래량 배수", 1.5, 5.0, 2.0)
+        
+        st.markdown("##### 3️⃣ 골든크로스 (GC)")
+        g_short = st.number_input("단기 이평", 3, 10, 5)
+        g_long = st.number_input("장기 이평", 15, 60, 20)
+        g_rsi = st.slider("RSI 기준선", 30, 70, 50)
+        
+        st.markdown("##### 4️⃣ 박스권돌파 (Break)")
+        br_lookback = st.slider("박스권 탐색 기간", 20, 120, 60)
+        br_vol = st.slider("돌파 거래량 배수", 1.5, 5.0, 2.0)
+        
+        st.markdown("##### 5️⃣ 정배열초입 (MA Align)")
+        c_pct = st.slider("이평선 밀집도 (%)", 1, 10, 3) / 100
+
+    # 백엔드 전달용 파라미터 묶음
+    strat_vars = {
+        "p_lookback": p_lookback, "p_vol": p_vol,
+        "b_ma": b_ma, "b_vol_ratio": b_vol_ratio,
+        "g_short": g_short, "g_long": g_long, "g_rsi": g_rsi,
+        "br_lookback": br_lookback, "br_vol": br_vol,
+        "c_pct": c_pct
+    }
 
     st.divider()
     
@@ -261,7 +279,14 @@ with st.sidebar:
             try: requests.get(f"{BACKEND_URL}/api/scan", params=p, timeout=200)
             except: pass
 
-        scan_params = {"min_market_cap": f_mcap * 100000000, "top_rank": f_rank, "strats": ",".join(f_strats)}
+        # 모든 전략 항상 분석하되 동적 파라미터 적용
+        all_strats = ["pullback", "bottom_escape", "golden_cross", "breakout", "convergence"]
+        scan_params = {
+            "min_market_cap": f_mcap * 100000000, 
+            "top_rank": f_rank, 
+            "strats": ",".join(all_strats),
+            "vars": json.dumps(strat_vars)
+        }
         
         # 스레드 시작
         scan_thread = threading.Thread(target=run_scan_request, args=(scan_params,))

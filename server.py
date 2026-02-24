@@ -220,7 +220,8 @@ async def get_progress():
 async def run_scan(
     min_market_cap: Optional[int] = None,
     top_rank: Optional[int] = None,
-    strats: Optional[str] = None
+    strats: Optional[str] = None,
+    vars: Optional[str] = None
 ):
     """전체 스캔 실행 + 교집합 분석 (동적 파라미터 지원)"""
     global latest_results
@@ -230,6 +231,7 @@ async def run_scan(
         if min_market_cap is not None: params["min_market_cap"] = min_market_cap
         if top_rank is not None: params["top_rank"] = top_rank
         if strats: params["strategies"] = strats.split(",")
+        if vars: params["vars"] = json.loads(vars)
 
         # 무거운 스캔 작업을 스레드풀에서 실행 (메인 루프 차단 방지)
         results = await run_in_threadpool(scanner.run_scan, scan_params=params)
