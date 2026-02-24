@@ -47,6 +47,7 @@ class StrategySignal:
     target_price_2: float = 0.0      # 2차 목표가
     stop_loss: float = 0.0           # 손절가
     risk_reward_ratio: float = 0.0   # 위험/보상 비율
+    market_cap: int = 0              # 시가총액
     reasons: List[str] = field(default_factory=list)
     details: Dict = field(default_factory=dict)
     verdict: str = "관망"             # "매수 승인" / "관망"
@@ -58,22 +59,23 @@ class StrategyEngine:
     def __init__(self):
         self.params = strategy_config
 
+    def _init_signal(self, ticker: str, strategy_type: StrategyType) -> StrategySignal:
+        """종목 정보(이름, 시총 등)를 포함한 기본 시그널 객체 초기화"""
+        details = collector.get_ticker_details(ticker)
+        return StrategySignal(
+            ticker=ticker,
+            name=details["name"],
+            market_cap=details["market_cap"],
+            current_price=details["price"],
+            strategy=strategy_type,
+        )
+
     # ══════════════════════════════════════
     # 1. 눌림목 (Pullback)
     # ══════════════════════════════════════
     def check_pullback(self, ticker: str) -> StrategySignal:
-        """
-        눌림목 전략 판별
-        조건:
-        1) 기준봉 중심값 지지 확인
-        2) 분봉상 거래량 절벽 (매도 고갈)
-        3) 주가 하락 시 기관 보유 수량 유지
-        """
-        signal = StrategySignal(
-            ticker=ticker,
-            name=collector.get_stock_name(ticker),
-            strategy=StrategyType.PULLBACK,
-        )
+        """눌림목 전략 판별"""
+        signal = self._init_signal(ticker, StrategyType.PULLBACK)
 
         # OHLCV 수집
         df = collector.get_ohlcv(ticker, 100)
@@ -166,18 +168,8 @@ class StrategyEngine:
     # 2. 바닥 탈출 (20일선 돌파)
     # ══════════════════════════════════════
     def check_bottom_escape(self, ticker: str) -> StrategySignal:
-        """
-        바닥 탈출 전략 판별
-        조건:
-        1) 20일선 상향 돌파
-        2) 상방 5% 이내 두터운 매물대 벽 없음
-        3) 최근 20일 내 매집봉 존재
-        """
-        signal = StrategySignal(
-            ticker=ticker,
-            name=collector.get_stock_name(ticker),
-            strategy=StrategyType.BOTTOM_ESCAPE,
-        )
+        """바닥 탈출 전략 판별"""
+        signal = self._init_signal(ticker, StrategyType.BOTTOM_ESCAPE)
 
         df = collector.get_ohlcv(ticker, 100)
         if df.empty or len(df) < 30:
@@ -279,18 +271,8 @@ class StrategyEngine:
     # 3. 골든 크로스 (Golden Cross)
     # ══════════════════════════════════════
     def check_golden_cross(self, ticker: str) -> StrategySignal:
-        """
-        골든 크로스 전략 판별
-        조건:
-        1) 5일선이 20일선을 상향 돌파 (골든크로스)
-        2) 20일선 기울기 ≥ 0 (평탄 이상)
-        3) RSI가 50선을 상향 돌파
-        """
-        signal = StrategySignal(
-            ticker=ticker,
-            name=collector.get_stock_name(ticker),
-            strategy=StrategyType.GOLDEN_CROSS,
-        )
+        """골든 크로스 전략 판별"""
+        signal = self._init_signal(ticker, StrategyType.GOLDEN_CROSS)
 
         df = collector.get_ohlcv(ticker, 100)
         if df.empty or len(df) < 30:
@@ -399,18 +381,8 @@ class StrategyEngine:
     # 4. 박스권 돌파 (Breakout)
     # ══════════════════════════════════════
     def check_breakout(self, ticker: str) -> StrategySignal:
-        """
-        박스권 돌파 전략 판별
-        조건:
-        1) 전고점 돌파
-        2) 매도 호가 잔량 > 매수 호가 × 2 (벽 뚫기 == 강한 매수)
-        3) 프로그램 매수 가속도 확인
-        """
-        signal = StrategySignal(
-            ticker=ticker,
-            name=collector.get_stock_name(ticker),
-            strategy=StrategyType.BREAKOUT,
-        )
+        """박스권 돌파 전략 판별"""
+        signal = self._init_signal(ticker, StrategyType.BREAKOUT)
 
         df = collector.get_ohlcv(ticker, 120)
         if df.empty or len(df) < 30:
@@ -518,18 +490,8 @@ class StrategyEngine:
     # 5. 정배열 초입 (Convergence → Divergence)
     # ══════════════════════════════════════
     def check_convergence(self, ticker: str) -> StrategySignal:
-        """
-        정배열 초입 전략 판별
-        조건:
-        1) 5-20-60-120일선이 3% 이내 밀집
-        2) 밀집 후 발산 시작
-        3) 업종 지수 상승 추세 시 가중치
-        """
-        signal = StrategySignal(
-            ticker=ticker,
-            name=collector.get_stock_name(ticker),
-            strategy=StrategyType.CONVERGENCE,
-        )
+        """정배열 초입 전략 판별"""
+        signal = self._init_signal(ticker, StrategyType.CONVERGENCE)
 
         df = collector.get_ohlcv(ticker, 200)
         if df.empty or len(df) < 120:

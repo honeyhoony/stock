@@ -131,16 +131,15 @@ class DataCollector:
                 return df
 
         frames = []
-        # 장 시작 전이나 휴일 대응: 최근 5일 중 데이터가 있는 가장 가까운 날짜 탐색
+        # 장 시작 전이나 휴일 대응: 최근 7일 중 데이터가 있는 가장 가까운 날짜 탐색
         found_date = None
-        for i in range(5):
+        for i in range(7):
             target_date = (datetime.now() - timedelta(days=i)).strftime("%Y%m%d")
             temp_frames = []
             for mkt_id, mkt_name in [("STK", "KOSPI"), ("KSQ", "KOSDAQ")]:
                 df = krx_post("dbms/MDC/STAT/standard/MDCSTAT01501", {
                     "mktId": mkt_id,
                     "trdDd": target_date,
-                    "share": "1",
                     "money": "1",
                     "csvxls_isNo": "false",
                 })
@@ -156,22 +155,21 @@ class DataCollector:
         
         if not frames:
             logger.warning("KRX 최근 5일 데이터 조회 실패 — 대규모 시뮬레이션 데이터 전환")
-            return self._generate_simulated_market_data()
-
-        result = pd.concat(frames, ignore_index=True)
-
-        # 컬럼 매핑
-        col_map = {
-            "ISU_SRT_CD": "종목코드",
-            "ISU_ABBRV": "종목명",
-            "TDD_CLSPRC": "종가",
-            "MKTCAP": "시가총액",
-            "ACC_TRDVAL": "거래대금",
-            "ACC_TRDVOL": "거래량",
-            "FLUC_RT": "등락률",
-            "LIST_SHRS": "상장주식수",
-        }
-        result.rename(columns={k: v for k, v in col_map.items() if k in result.columns}, inplace=True)
+            result = self._generate_simulated_market_data()
+        else:
+            result = pd.concat(frames, ignore_index=True)
+            # 컬럼 매핑
+            col_map = {
+                "ISU_SRT_CD": "종목코드",
+                "ISU_ABBRV": "종목명",
+                "TDD_CLSPRC": "종가",
+                "MKTCAP": "시가총액",
+                "ACC_TRDVAL": "거래대금",
+                "ACC_TRDVOL": "거래량",
+                "FLUC_RT": "등락률",
+                "LIST_SHRS": "상장주식수",
+            }
+            result.rename(columns={k: v for k, v in col_map.items() if k in result.columns}, inplace=True)
 
         # 숫자 변환
         for col in ["종가", "시가총액", "거래대금", "거래량"]:
@@ -180,13 +178,27 @@ class DataCollector:
                     result[col].astype(str).str.replace(",", ""), errors="coerce"
                 )
 
-        # 종목명 캐시
-        if "종목코드" in result.columns and "종목명" in result.columns:
-            for _, row in result.iterrows():
+        # 종목 정보 캐시 (인덱스 또는 컬럼 대응)
+        temp_res = result.reset_index() if result.index.name == "종목코드" else result
+        if "종목코드" in temp_res.columns and "종목명" in temp_res.columns:
+            for _, row in temp_res.iterrows():
                 self._ticker_name_cache[str(row["종목코드"])] = str(row["종목명"])
 
         self._cache[cache_key] = (datetime.now(), result)
         return result
+
+    def get_ticker_details(self, ticker: str) -> Dict:
+        """종목의 최근 시총, 종가 등 요약 정보 반환"""
+        df = self.get_market_cap_data()
+        if ticker in df.index:
+            row = df.loc[ticker]
+            return {
+                "name": row.get("종목명", ticker),
+                "market_cap": int(row.get("시가총액", 0)),
+                "price": int(row.get("종가", 0)),
+                "value": int(row.get("거래대금", 0)),
+            }
+        return {"name": ticker, "market_cap": 0, "price": 0, "value": 0}
 
     def filter_stocks(self, min_market_cap: int = None, top_rank: int = None) -> pd.DataFrame:
         """시가총액 및 거래대금 순합 기반 필터링 (동적 인자 지원)"""

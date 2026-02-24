@@ -145,6 +145,7 @@ class ReportGenerator:
             "target_price_2": signal.target_price_2,
             "stop_loss": signal.stop_loss,
             "risk_reward_ratio": signal.risk_reward_ratio,
+            "market_cap": signal.market_cap,
             "reasons": signal.reasons,
             "verdict": signal.verdict,
             "details": _safe_serialize(signal.details),
