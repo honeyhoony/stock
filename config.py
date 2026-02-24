@@ -68,7 +68,7 @@ class SupabaseConfig:
 class FilterConfig:
     """잡주 배제용 필터"""
     min_market_cap: int = 100_000_000_000      # 시가총액 1,000억 원 이상
-    top_trading_value_rank: int = 300           # 거래대금 상위 300 이내
+    top_trading_value_rank: int = 100           # 거래대금 상위 100 이내
     exclude_etf: bool = True                   # ETF 제외
     exclude_spac: bool = True                  # SPAC 제외
     markets: list = field(default_factory=lambda: ["KOSPI", "KOSDAQ"])

@@ -232,7 +232,7 @@ with st.sidebar:
     mode = st.radio("전략 프리셋", ["💎 안전 투자 (우량주)", "💰 수익 추구 (중립)", "⚡ 공격 투자 (급등)", "🔥 전체 스캔 (ALL)"], index=1)
     
     # 설정값 프리셋
-    mcap_p = 1000; rank_p = 300; strats_p = ["pullback", "bottom_escape", "golden_cross"]
+    mcap_p = 1000; rank_p = 100; strats_p = ["pullback", "bottom_escape", "golden_cross"]
     if "안전" in mode: mcap_p = 3000; rank_p = 100; strats_p = ["pullback", "bottom_escape"]
     elif "공격" in mode: mcap_p = 200; rank_p = 1000; strats_p = ["golden_cross", "breakout"]
     elif "전체" in mode: mcap_p = 0; rank_p = 0; strats_p = ["pullback", "bottom_escape", "golden_cross", "breakout", "convergence"]
@@ -394,12 +394,12 @@ else:
             st.markdown(card_html, unsafe_allow_html=True)
 
 # ══════════════════════════════════════
-# [5] 리스트 섹션 (TOP 200)
+# [5] 리스트 섹션 (TOP 100)
 # ══════════════════════════════════════
 st.divider()
-st.markdown("### 🔝 데이터 신뢰도 순위 (TOP 200)")
+st.markdown("### 🔝 데이터 신뢰도 순위 (TOP 100)")
 if raw_sigs:
-    tops = sorted(raw_sigs, key=lambda x: x.get('confidence', 0), reverse=True)[:200]
+    tops = sorted(raw_sigs, key=lambda x: x.get('confidence', 0), reverse=True)[:100]
     # 테마 변수 재로드 (for NameError 방지)
     t_colors = st.session_state.theme_colors
     l_cols = st.columns(4)
