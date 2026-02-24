@@ -196,6 +196,8 @@ def inject_premium_css_v4():
     .h-table {{ width: 100%; border-collapse: collapse; margin-top: 15px; border-radius: 15px; overflow: hidden; }}
     .h-table th {{ background: {accent}; color: white !important; padding: 12px; text-align: left; }}
     .h-table td {{ background: {sub_card}; padding: 12px; border-bottom: 1px solid {border}; font-size: 0.85rem; }}
+
+    .strat-label {{ font-size: 0.7rem; font-weight: 800; color: {text_dim} !important; margin-bottom: 2px; text-transform: uppercase; }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -251,11 +253,11 @@ with st.sidebar:
     elif "공격" in mode: mcap_p = 200; rank_p = 1000; strats_p = ["golden_cross", "breakout"]
     elif "전체" in mode: mcap_p = 0; rank_p = 0; strats_p = ["pullback", "bottom_escape", "golden_cross", "breakout", "convergence"]
 
-    with st.expander("💼 종목군 필터 설정", expanded=True):
+    with st.expander("종목군 필터 설정", expanded=True):
         f_mcap = st.number_input("최소 시가총액 (억)", 0, 50000, mcap_p, step=100)
         f_rank = st.number_input("거래대금 상위 순위", 0, 3000, rank_p, step=50)
 
-    with st.expander("🎯 전략별 정밀 튜닝 (VPI)", expanded=False):
+    with st.expander("전략별 정밀 튜닝 (VPI)", expanded=False):
         st.markdown("##### 1️⃣ 눌림목 (Pullback)")
         p_lookback = st.slider("기준봉 탐색 (일)", 1, 20, 5)
         p_vol = st.slider("거래량 절벽 (%)", 10, 100, 30) / 100
@@ -315,10 +317,21 @@ with st.sidebar:
                 prog = requests.get(f"{BACKEND_URL}/api/progress", timeout=2).json()
                 pct = prog.get("percent", 0)
                 active_logs = prog.get("active_logs", [])
+                strat_prog = prog.get("strategy_progress", {})
                 
                 # 프로그레스 바 및 멀티 로그 업데이트
                 p_bar.progress(pct / 100, text=f"분석 진행 중... {pct}%")
                 
+                # 전략별 미니 진행률 표시
+                if strat_prog:
+                    s_cols = st.columns(5)
+                    s_names = {"pullback": "눌림목", "bottom_escape": "바닥탈출", "golden_cross": "골든크로스", "breakout": "박스권돌파", "convergence": "정배열초입"}
+                    for i, (sk, sn) in enumerate(s_names.items()):
+                        with s_cols[i]:
+                            spct = strat_prog.get(sk, 0)
+                            st.markdown(f'<div class="strat-label">{sn}</div>', unsafe_allow_html=True)
+                            st.progress(spct / 100)
+
                 log_html = "".join([f'<div style="font-size:0.85rem; margin-bottom:4px; color:#6366f1">{log}</div>' for log in active_logs])
                 p_msg.markdown(f"""
                 <div style="background:rgba(99, 102, 241, 0.05); padding:18px; border-radius:16px; border:1px solid rgba(99, 102, 241, 0.2); margin:10px 0">

@@ -48,9 +48,15 @@ class QuantScanner:
             )
         self.scan_results: List[dict] = []
         self.market_condition = None
-        self.progress = {"percent": 0, "message": "대기 중...", "active_logs": []}
+        self.progress = {
+            "percent": 0, 
+            "message": "대기 중...", 
+            "active_logs": [],
+            "strategy_progress": {}
+        }
         self._lock = threading.Lock()
-        self.active_logs = {} # 딕셔너리로 관리
+        self.active_logs = {}
+        self.strategy_counts = {} # 전략별 완료 카운트
 
     def run_scan(self, scan_params: dict = None) -> dict:
         """
@@ -148,13 +154,16 @@ class QuantScanner:
                 with self._lock:
                     self.active_logs[ticker_info] = f"⏳ {stock_name} 분석 중..."
                 
-                sigs = []
                 # 분석 수행 (이 구간은 병렬로 진행)
                 for strategy_key, check_fn in strategy_map.items():
                     if strategy_key not in allowed: continue
                     try:
                         signal = check_fn(ticker_info)
                         if signal.triggered: sigs.append(signal)
+                        
+                        # 전략별 개별 진행률 카운트
+                        with self._lock:
+                            self.strategy_counts[strategy_key] = self.strategy_counts.get(strategy_key, 0) + 1
                     except: pass
                 
                 # 진행률 및 종료 로그 업데이트
@@ -163,12 +172,15 @@ class QuantScanner:
                     curr_pct = 20 + int((processed_count / max(total, 1)) * 75)
                     self.active_logs[ticker_info] = f"✅ {stock_name} 완료"
                     
-                    # 진행률과 함께 현재 활성 로그 5개만 노출
+                    # 진행률과 함께 현재 활성 로그 및 전략별 퍼센트 계산
                     display_logs = list(self.active_logs.values())[-5:]
+                    strat_prog = {k: int((v / max(total, 1)) * 100) for k, v in self.strategy_counts.items()}
+                    
                     self.progress = {
                         "percent": curr_pct, 
                         "message": f"📊 {stock_name} 분석 완료 ({processed_count}/{total})",
-                        "active_logs": display_logs
+                        "active_logs": display_logs,
+                        "strategy_progress": strat_prog
                     }
                 return sigs
 
