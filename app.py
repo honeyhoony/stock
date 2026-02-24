@@ -178,17 +178,6 @@ def inject_premium_css_v4():
 
     .logo-font {{ font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 2rem; color: {accent} !important; }}
     
-    /* 모바일 링크 배너 */
-    .mobile-banner {{
-        background: #fbbf24;
-        color: #000000 !important;
-        padding: 15px;
-        border-radius: 16px;
-        font-weight: 800;
-        text-align: center;
-        margin-bottom: 25px;
-    }}
-    
     /* 도움말 테이블 */
     .h-table {{ width: 100%; border-collapse: collapse; margin-top: 15px; border-radius: 15px; overflow: hidden; }}
     .h-table th {{ background: {accent}; color: white !important; padding: 12px; text-align: left; }}
@@ -293,9 +282,8 @@ with st.sidebar:
         st.rerun()
 
 # ══════════════════════════════════════
-# [2] 헤더: 시장 상태 및 모바일 접속
+# [2] 헤더: 시장 상태
 # ══════════════════════════════════════
-st.markdown(f'<div class="mobile-banner">📱 모바일 실시간 감시 링크: http://{LOCAL_IP}:8501 (노트북 전원 유지 권장)</div>', unsafe_allow_html=True)
 
 # 백엔드 서버 상태 체크
 if not check_backend_status():
